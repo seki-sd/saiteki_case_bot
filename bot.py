@@ -1,15 +1,16 @@
 # %%
 import os
+
+from saiteki_qa_agent import SaitekiQaAgent
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
-from saiteki_qa_agent import SaitekiQaAgent
 
 # 環境変数から Slack の API キーを取得
 try:
     SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
     SLACK_APP_TOKEN = os.environ["SLACK_APP_TOKEN"]
 except:
-    print('SLACK_BOT_TOKEN, SLACK_APP_TOKEN を環境変数に設定してください')
+    print("SLACK_BOT_TOKEN, SLACK_APP_TOKEN を環境変数に設定してください")
     exit()
 
 # Slack のアプリを初期化
@@ -36,28 +37,26 @@ def _message_builder(event, result):
     """
     message = f'<@{event["user"]}>\n'
     message += f'{result["answer_text"]}\n\n'
-    if len(result['source_documents']) > 0:
-        message += '関連記事(関連度%):\n'
-        for source_document in result['source_documents']:
-            title, url, score = source_document['title'], source_document['url'], source_document['score']
+    if len(result["source_documents"]) > 0:
+        message += "関連記事(関連度%):\n"
+        for source_document in result["source_documents"]:
+            title, url, score = source_document["title"], source_document["url"], source_document["score"]
             # score を小数点以下2桁に丸めて文字列にする
             score = str(int((round(score, 2) * 100)))
-            message += f'- <{url}|{title}({score}%)>\n'
+            message += f"- <{url}|{title}({score}%)>\n"
     return message
 
 
 @app.event("app_mention")
 def respond_to_mention(event, say):
-    """chatbotにメンションが付けられたときのハンドラ
-    """
+    """chatbotにメンションが付けられたときのハンドラ"""
     print(event)
 
     # 質問に対する回答を取得する
     try:
-        result = qa.run(event['text'])
+        result = qa.run(event["text"])
     except Exception as e:
-        result = {'answer_text': f'エラーがおきました :しゅん: \n```{e.args}\n```',
-                  'source_documents': []}
+        result = {"answer_text": f"エラーがおきました :しゅん: \n```{e.args}\n```", "source_documents": []}
 
     # 返信するメッセージを作成
     message = _message_builder(event, result)

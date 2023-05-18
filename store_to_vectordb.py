@@ -3,7 +3,6 @@ import os
 import time
 import urllib.parse
 
-import pinecone
 import requests
 from bs4 import BeautifulSoup
 from langchain.docstore.document import Document
@@ -12,7 +11,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Pinecone
 
 
-class VectorStore():
+class VectorStore:
     """
     VectorStore クラスは、Pinecone を使用してドキュメントのベクトル化とベクトルストアへの保存を処理します。
 
@@ -27,12 +26,11 @@ class VectorStore():
         """
         # 環境変数から Pinecone の API キーと環境を取得
         try:
-            self.pinecone_api_key = os.environ['PINECONE_API_KEY']
-            self.pinecone_env = os.environ['PINECONE_ENV']
-            self.pinecone_index_name = os.environ['PINECONE_INDEX_NAME']
+            self.pinecone_api_key = os.environ["PINECONE_API_KEY"]
+            self.pinecone_env = os.environ["PINECONE_ENV"]
+            self.pinecone_index_name = os.environ["PINECONE_INDEX_NAME"]
         except:
-            raise Exception(
-                'PINECONE_API_KEY, PINECONE_ENV, PINECONE_INDEX_NAME を環境変数に設定してください')
+            raise Exception("PINECONE_API_KEY, PINECONE_ENV, PINECONE_INDEX_NAME を環境変数に設定してください")
 
         # pinecone を初期化
         pinecone.init(
@@ -57,12 +55,11 @@ class VectorStore():
         """
         # documents をベクトル化して vectore store に保存する
         embeddings = OpenAIEmbeddings()
-        Pinecone.from_documents(documents, embeddings,
-                                index_name=self.pinecone_index_name)
-        print('Done.')
+        Pinecone.from_documents(documents, embeddings, index_name=self.pinecone_index_name)
+        print("Done.")
 
 
-class SaitekiManualHandler():
+class SaitekiManualHandler:
     """
     SaitekiManualHandler クラスは、Saiteki サポートサイトから記事を取得し、ドキュメントを生成、分割する機能を提供します。
 
@@ -76,8 +73,7 @@ class SaitekiManualHandler():
         """
         SaitekiManualHandler インスタンスを初期化します。
         """
-        self.saiteki_url_parts = urllib.parse.urlparse(
-            'https://support.saiteki.works')
+        self.saiteki_url_parts = urllib.parse.urlparse("https://support.saiteki.works")
 
     def _get_url_by_path(self, path):
         """
@@ -105,11 +101,8 @@ class SaitekiManualHandler():
         """
         # url にアクセスする
         # headers は zendesk が定めるものを使う
-        print(f'Accessing {url} ...')
-        res = requests.get(
-            url=url,
-            headers={'user-agent': 'Zendesk/External-Content'}
-        )
+        print(f"Accessing {url} ...")
+        res = requests.get(url=url, headers={"user-agent": "Zendesk/External-Content"})
         soup = BeautifulSoup(res.text, "html.parser")
         # DDos対策
         time.sleep(1)
@@ -130,8 +123,8 @@ class SaitekiManualHandler():
         soup = self._request(url)
         # その中で、食わせたいページの path を取得する
         paths = []
-        for h2 in soup.find_all('h2'):
-            paths.append(h2.find('a').get('href'))
+        for h2 in soup.find_all("h2"):
+            paths.append(h2.find("a").get("href"))
         # path から url を取得する
         url_list = [self._get_url_by_path(path) for path in paths]
         return url_list
@@ -150,8 +143,8 @@ class SaitekiManualHandler():
         soup = self._request(url)
         # class 名が article-list-item の a タグの href を取得する
         paths = []
-        for a in soup.find_all('a', class_='article-list-link'):
-            paths.append(a.get('href'))
+        for a in soup.find_all("a", class_="article-list-link"):
+            paths.append(a.get("href"))
         # path から url を取得する
         url_list = [self._get_url_by_path(path) for path in paths]
         return url_list
@@ -170,11 +163,11 @@ class SaitekiManualHandler():
         soup = self._request(url)
         # ページタイトルを取得。'工程デザイナーご利用の流れ – saiteki.works サポートサイト'
         # という形式なので、' – ' で分割して、先頭の要素を取得する
-        title = soup.find('title').text.split(' – ')[0]
+        title = soup.find("title").text.split(" – ")[0]
         # soup から div.article-body を取得する
-        body_text = soup.find('div', class_='article-body').text
+        body_text = soup.find("div", class_="article-body").text
         # ページ本文から document を作る
-        metadata = {"source": url, 'title': title}
+        metadata = {"source": url, "title": title}
         document = Document(page_content=body_text, metadata=metadata)
         return document
 
@@ -188,7 +181,7 @@ class SaitekiManualHandler():
         Returns:
             list: Document オブジェクトのリスト
         """
-        print(f'Generating documents ...')
+        print(f"Generating documents ...")
         documents = []
         for url in page_urls:
             documents.append(self.generate_document(url))
@@ -204,7 +197,7 @@ class SaitekiManualHandler():
         Returns:
             list: 分割された Document オブジェクトのリスト
         """
-        print(f'Splitting documents ...')
+        print(f"Splitting documents ...")
         # documents を分割する
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=2000,
@@ -241,14 +234,13 @@ class SaitekiManualHandler():
         return documents
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     # 与えた url から順に辿って、食わせたいページの document を取得する
     # これらのページはサポートページトップの「最適ワークス」「サービスマネージャー」「よくある質問(FAQ)」のページ
     root_urls = [
-        'https://support.saiteki.works/hc/ja/categories/8436793810329-%E6%9C%80%E9%81%A9%E3%83%AF%E3%83%BC%E3%82%AF%E3%82%B9',
-        'https://support.saiteki.works/hc/ja/categories/8436803690009-%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%83%9E%E3%83%8D%E3%83%BC%E3%82%B8%E3%83%A3%E3%83%BC',
-        'https://support.saiteki.works/hc/ja/categories/900000309486-%E3%82%88%E3%81%8F%E3%81%82%E3%82%8B%E3%81%94%E8%B3%AA%E5%95%8F-FAQ-'
+        "https://support.saiteki.works/hc/ja/categories/8436793810329-%E6%9C%80%E9%81%A9%E3%83%AF%E3%83%BC%E3%82%AF%E3%82%B9",
+        "https://support.saiteki.works/hc/ja/categories/8436803690009-%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%83%9E%E3%83%8D%E3%83%BC%E3%82%B8%E3%83%A3%E3%83%BC",
+        "https://support.saiteki.works/hc/ja/categories/900000309486-%E3%82%88%E3%81%8F%E3%81%82%E3%82%8B%E3%81%94%E8%B3%AA%E5%95%8F-FAQ-",
     ]
     handler = SaitekiManualHandler()
     documents = handler.get_documents_from_urls(root_urls)
