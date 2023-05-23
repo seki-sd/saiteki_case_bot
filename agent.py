@@ -5,25 +5,23 @@ from typing import Any, List, Optional
 from langchain.chains import RetrievalQA
 from langchain.chat_models import ChatOpenAI
 from langchain.docstore.document import Document
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import Pinecone
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.vectorstores import FAISS
 
 
-class PineconeWithScore(Pinecone):
+class FaissWithScore(FAISS):
     """
-    PineconeWithScore は、Pinecone を継承したクラスです。Pinecone には、検索結果のスコアを取得する機能がないため、
+    FaissWithScore は、 FAISS を継承したクラスです。FAISS には、検索結果のスコアを取得する機能がないため、
     このクラスを使用することで、検索結果のスコアを取得できるようになります。
     """
 
-    def similarity_search(
-        self, query: str, k: int = 5, filter: Optional[dict] = None, namespace: Optional[str] = None, **kwargs: Any
-    ) -> List[Document]:
+    def similarity_search(self, query: str, k: int = 5, **kwargs: Any) -> List[Document]:
         """
-        指定したクエリに最も近いドキュメントを Pinecone から取得します。
-        このメソッドは、Pinecone の similarity_search メソッドをオーバーライドしています。
+        指定したクエリに最も近いドキュメントを FAISS から取得します。
+        このメソッドは、 FAISS の similarity_search メソッドをオーバーライドしています。
         """
         # 検索結果のスコアを取得する
-        docs_with_score = super().similarity_search_with_score(query, k, filter, namespace, **kwargs)
+        docs_with_score = super().similarity_search_with_score(query, k)
 
         # 検索結果のスコアをドキュメントに追加する
         docs = []
@@ -33,48 +31,50 @@ class PineconeWithScore(Pinecone):
         return docs
 
 
-class SaitekiQaAgent:
+class Agent:
     """
-    SaitekiQaAgent は、質問応答 (QA) システムを実装したクラスです。これは、質問を受け取り、関連する情報を検索し、最適な回答を生成します。
-    Pinecone をベクトルストアとして使用し、環境変数から Pinecone の API キーと環境を取得します。
+    Agent は、質問応答 (QA) システムを実装したクラスです。これは、質問を受け取り、関連する情報を検索し、最適な回答を生成します。
+    FAISS をベクトルストアとして使用し、環境変数から OpenAI の API キーと環境を取得します。
 
     主なメソッド:
-    - initialize_chain: Pinecone を初期化し、QA チェーンを作成します。
+    - initialize_chain: FAISS を初期化し、QA チェーンを作成します。
     - run: 質問に対する回答を取得します。必要に応じて QA チェーンを初期化します。
 
     使用例:
-    qa_agent = SaitekiQaAgent()
+    qa_agent = Agent()
     result = qa_agent.run("質問のテキスト")
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self, vector_store_folder_path: str = "vector_store_faiss", vector_store_index_name: str = "index"
+    ) -> None:
         """
-        SaitekiQaAgent インスタンスを初期化します。qa_chain は None に設定されます。
+        Agent インスタンスを初期化します。qa_chain は None に設定されます。
         """
         self.qa_chain = None
+        self.vector_store_folder_path = vector_store_folder_path
+        self.vector_store_index_name = vector_store_index_name
 
     def initialize_chain(self):
         """
-        Pinecone を初期化し、QA チェーンを作成します。環境変数から Pinecone の API キーと環境を取得し、
-        それらを使用して Pinecone を初期化します。その後、ベクトルストアを用いた検索機能を持つ QA チェーンを作成します。
+        FAISS を初期化し、QA チェーンを作成します。環境変数から OpenAI の API キーと環境を取得し、
+        それらを使用して FAISS を初期化します。その後、ベクトルストアを用いた検索機能を持つ QA チェーンを作成します。
         """
-        # vectore store として pinecone を使用
+        # vectore store として FAISS を使用
         embeddings = OpenAIEmbeddings()
 
-        # 環境変数から Pinecone の API キーと環境を取得
+        # 環境変数から OpenAI の API キーと環境を取得
         try:
-            self.pinecone_api_key = os.environ["PINECONE_API_KEY"]
-            self.pinecone_env = os.environ["PINECONE_ENV"]
-            self.pinecone_index_name = os.environ["PINECONE_INDEX_NAME"]
+            self.openai_api_key = os.environ["OPENAI_API_KEY"]
         except:
-            raise Exception("PINECONE_API_KEY, PINECONE_ENV, PINECONE_INDEX_NAME を環境変数に設定してください")
+            raise Exception("OPENAI_API_KEY を環境変数に設定してください")
 
-        # pinecone を初期化
-        pinecone.init(
-            api_key=self.pinecone_api_key,
-            environment=self.pinecone_env,
+        # vectore store を初期化
+        vectorstore = FaissWithScore.load_local(
+            folder_path=self.vector_store_folder_path,
+            embeddings=embeddings,
+            index_name=self.vector_store_index_name,
         )
-        vectorstore = PineconeWithScore.from_existing_index(index_name=self.pinecone_index_name, embedding=embeddings)
 
         # qa chain を作成
         retriever = vectorstore.as_retriever()
@@ -118,8 +118,8 @@ class SaitekiQaAgent:
 
 
 if __name__ == "__main__":
-    saiteki_qa_agent = SaitekiQaAgent()
-    answer = saiteki_qa_agent.run("特急オーダーを入れたい")
+    agent = Agent()
+    answer = agent.run("特急オーダーを入れたい")
     print(answer)
 
 # %%

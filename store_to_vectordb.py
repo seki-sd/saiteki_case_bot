@@ -1,5 +1,5 @@
 # %%
-import os
+import gc
 import time
 import urllib.parse
 
@@ -8,43 +8,21 @@ from bs4 import BeautifulSoup
 from langchain.docstore.document import Document
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Pinecone
+from langchain.vectorstores import FAISS
 
 
 class VectorStore:
     """
-    VectorStore クラスは、Pinecone を使用してドキュメントのベクトル化とベクトルストアへの保存を処理します。
+    VectorStore クラスは、 FAISS を使用してドキュメントのベクトル化とベクトルストアへの保存を処理します。
 
     主なメソッド:
-    - delete_all_indexes: すべてのインデックスを削除します。
     - store_to_vectoredb: ドキュメントをベクトル化し、ベクトルストアに保存します。
     """
 
-    def __init__(self):
-        """
-        VectorStore インスタンスを初期化します。環境変数から Pinecone の API キーと環境を取得し、Pinecone を初期化します。
-        """
-        # 環境変数から Pinecone の API キーと環境を取得
-        try:
-            self.pinecone_api_key = os.environ["PINECONE_API_KEY"]
-            self.pinecone_env = os.environ["PINECONE_ENV"]
-            self.pinecone_index_name = os.environ["PINECONE_INDEX_NAME"]
-        except:
-            raise Exception("PINECONE_API_KEY, PINECONE_ENV, PINECONE_INDEX_NAME を環境変数に設定してください")
-
-        # pinecone を初期化
-        pinecone.init(
-            api_key=self.pinecone_api_key,
-            environment=self.pinecone_env,
-        )
-
-    def delete_all_indexes(self):
-        """
-        すべてのインデックスを削除します。
-        """
-        # すべてのインデックスを削除
-        index = pinecone.Index(self.pinecone_index_name)
-        index.delete(delete_all=True)
+    def __init__(self, folder_path: str = "vector_store_faiss", index_name: str = "index") -> None:
+        """"""
+        self.folder_path = folder_path
+        self.index_name = index_name
 
     def store_to_vectoredb(self, documents):
         """
@@ -55,8 +33,11 @@ class VectorStore:
         """
         # documents をベクトル化して vectore store に保存する
         embeddings = OpenAIEmbeddings()
-        Pinecone.from_documents(documents, embeddings, index_name=self.pinecone_index_name)
-        print("Done.")
+        vectorestore = FAISS.from_documents(documents, embeddings)
+        vectorestore.save_local(self.folder_path, self.index_name)
+        del vectorestore
+        gc.collect()
+        print(f"Saved vectorstore to {self.folder_path}, with index name {self.index_name}.")
 
 
 class SaitekiManualHandler:
@@ -239,14 +220,12 @@ if __name__ == "__main__":
     # これらのページはサポートページトップの「最適ワークス」「サービスマネージャー」「よくある質問(FAQ)」のページ
     root_urls = [
         "https://support.saiteki.works/hc/ja/categories/8436793810329-%E6%9C%80%E9%81%A9%E3%83%AF%E3%83%BC%E3%82%AF%E3%82%B9",
-        "https://support.saiteki.works/hc/ja/categories/8436803690009-%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%83%9E%E3%83%8D%E3%83%BC%E3%82%B8%E3%83%A3%E3%83%BC",
-        "https://support.saiteki.works/hc/ja/categories/900000309486-%E3%82%88%E3%81%8F%E3%81%82%E3%82%8B%E3%81%94%E8%B3%AA%E5%95%8F-FAQ-",
+        # "https://support.saiteki.works/hc/ja/categories/8436803690009-%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%83%9E%E3%83%8D%E3%83%BC%E3%82%B8%E3%83%A3%E3%83%BC",
+        # "https://support.saiteki.works/hc/ja/categories/900000309486-%E3%82%88%E3%81%8F%E3%81%82%E3%82%8B%E3%81%94%E8%B3%AA%E5%95%8F-FAQ-",
     ]
     handler = SaitekiManualHandler()
     documents = handler.get_documents_from_urls(root_urls)
 
-    # vector store の中を全部削除したあと、
     # document をベクトル化して vectore store に保存する
     store = VectorStore()
-    store.delete_all_indexes()
     store.store_to_vectoredb(documents)

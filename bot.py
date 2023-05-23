@@ -1,7 +1,7 @@
 # %%
 import os
 
-from saiteki_qa_agent import SaitekiQaAgent
+from agent import Agent
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
@@ -15,7 +15,7 @@ except:
 
 # Slack のアプリを初期化
 app = App(token=SLACK_BOT_TOKEN)
-qa = SaitekiQaAgent()
+qa = Agent()
 
 
 def _message_builder(event, result):

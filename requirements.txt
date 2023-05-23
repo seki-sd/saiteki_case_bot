@@ -20,6 +20,8 @@ mypy-extensions==1.0.0
 numpy
 openai
 faiss-cpu
+regex
+tiktoken
 packaging==23.0
 pycodestyle==2.10.0
 pydantic
