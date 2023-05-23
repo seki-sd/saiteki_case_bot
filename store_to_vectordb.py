@@ -155,8 +155,8 @@ class SaitekiManualHandler:
         print(f"Splitting documents ...")
         # documents を分割する
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=2000,
-            chunk_overlap=20,
+            chunk_size=1000,
+            chunk_overlap=50,
             length_function=len,
         )
         splitted_documents = splitter.split_documents(documents)
@@ -181,9 +181,9 @@ class SaitekiManualHandler:
         documents = self._generate_documents(content_urls)
 
         # documents を分割する
-        # splitted_documents = self.split_documents(documents)
+        splitted_documents = self.split_documents(documents)
 
-        return documents
+        return splitted_documents
 
 
 if __name__ == "__main__":
