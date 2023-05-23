@@ -1,5 +1,7 @@
 # %%
 import gc
+import os
+import shutil
 import time
 import urllib.parse
 
@@ -23,6 +25,13 @@ class VectorStore:
         """"""
         self.folder_path = folder_path
         self.index_name = index_name
+
+    def delete_all_indexes(self):
+        """
+        すべてのインデックスを削除します。
+        """
+        if os.path.isdir(self.folder_path):
+            shutil.rmtree(self.folder_path)
 
     def store_to_vectoredb(self, documents):
         """
@@ -228,4 +237,5 @@ if __name__ == "__main__":
 
     # document をベクトル化して vectore store に保存する
     store = VectorStore()
+    store.delete_all_indexes()
     store.store_to_vectoredb(documents)
