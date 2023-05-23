@@ -119,7 +119,7 @@ class Agent:
 
 if __name__ == "__main__":
     agent = Agent()
-    answer = agent.run("特急オーダーを入れたい")
+    answer = agent.run("印刷関連事例")
     print(answer)
 
 # %%

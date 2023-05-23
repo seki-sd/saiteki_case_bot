@@ -60,24 +60,7 @@ class SaitekiManualHandler:
     """
 
     def __init__(self) -> None:
-        """
-        SaitekiManualHandler インスタンスを初期化します。
-        """
-        self.saiteki_url_parts = urllib.parse.urlparse("https://support.saiteki.works")
-
-    def _get_url_by_path(self, path):
-        """
-        path から URL を取得します。
-
-        Args:
-            path (str): URL のパス部分
-
-        Returns:
-            str: 完全な URL
-        """
-        # path から url を取得する
-        parts = self.saiteki_url_parts._replace(path=path)
-        return parts.geturl()
+        pass
 
     def _request(self, url):
         """
@@ -113,30 +96,10 @@ class SaitekiManualHandler:
         soup = self._request(url)
         # その中で、食わせたいページの path を取得する
         paths = []
-        for h2 in soup.find_all("h2"):
-            paths.append(h2.find("a").get("href"))
+        for x in soup.find_all("a", class_="u-w-12 u-h-12"):
+            paths.append(x.get("href"))
         # path から url を取得する
-        url_list = [self._get_url_by_path(path) for path in paths]
-        return url_list
-
-    def __get_article_urls(self, url):
-        """
-        与えられた URL から、記事の URL リストを取得します。
-
-        Args:
-            url (str): 基本となる URL
-
-        Returns:
-            list: 記事の URL リスト
-        """
-        # 与えられた url にアクセス
-        soup = self._request(url)
-        # class 名が article-list-item の a タグの href を取得する
-        paths = []
-        for a in soup.find_all("a", class_="article-list-link"):
-            paths.append(a.get("href"))
-        # path から url を取得する
-        url_list = [self._get_url_by_path(path) for path in paths]
+        url_list = paths
         return url_list
 
     def generate_document(self, url):
@@ -151,11 +114,13 @@ class SaitekiManualHandler:
         """
         # 与えられた url にアクセス
         soup = self._request(url)
-        # ページタイトルを取得。'工程デザイナーご利用の流れ – saiteki.works サポートサイト'
-        # という形式なので、' – ' で分割して、先頭の要素を取得する
-        title = soup.find("title").text.split(" – ")[0]
+        # ページタイトルを取得（タイトル - ユーザ名）
+        title = soup.find("h1", class_="p-news-singleTitle M:u-size30 u-size24 u-700 u-color-blue_2 u-lh14 u-mb25").text
+        author = soup.find("ul", class_="c-list u-flex u-items-center u-wrap")
+        username = author.find("span", class_="u-size14").text
+        title = f"{title} - {username}"
         # soup から div.article-body を取得する
-        body_text = soup.find("div", class_="article-body").text
+        body_text = soup.find("div", class_="c-editor u-mb75").text
         # ページ本文から document を作る
         metadata = {"source": url, "title": title}
         document = Document(page_content=body_text, metadata=metadata)
@@ -210,10 +175,7 @@ class SaitekiManualHandler:
         # urls それぞれから、食わせたいページの url を取得する
         content_urls = []
         for url in urls:
-            part_page_urls = self._get_page_urls(url)
-            # この下のページに興味があるので、それを取得する
-            for part_url in part_page_urls:
-                content_urls += self.__get_article_urls(part_url)
+            content_urls += self._get_page_urls(url)
 
         # documents を作る
         documents = self._generate_documents(content_urls)
@@ -228,9 +190,7 @@ if __name__ == "__main__":
     # 与えた url から順に辿って、食わせたいページの document を取得する
     # これらのページはサポートページトップの「最適ワークス」「サービスマネージャー」「よくある質問(FAQ)」のページ
     root_urls = [
-        "https://support.saiteki.works/hc/ja/categories/8436793810329-%E6%9C%80%E9%81%A9%E3%83%AF%E3%83%BC%E3%82%AF%E3%82%B9",
-        # "https://support.saiteki.works/hc/ja/categories/8436803690009-%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%83%9E%E3%83%8D%E3%83%BC%E3%82%B8%E3%83%A3%E3%83%BC",
-        # "https://support.saiteki.works/hc/ja/categories/900000309486-%E3%82%88%E3%81%8F%E3%81%82%E3%82%8B%E3%81%94%E8%B3%AA%E5%95%8F-FAQ-",
+        "https://saiteki.works/case_study/",
     ]
     handler = SaitekiManualHandler()
     documents = handler.get_documents_from_urls(root_urls)
